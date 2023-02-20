@@ -12,16 +12,71 @@
 前提条件
 ========
 
-| 本頁で紹介するバックアップ・リストア手順は下記の条件を満たしている必要があります。
+| 本頁で紹介するバックアップ・リストア手順では、下記の前提条件を満たしている必要があります。
 
-- 条件
+条件
+----
 
-  - 下記のコマンドが利用可能なこと
+- | 下記のコマンドが利用可能なこと
 
-    - :command:`tar`
-    - :command:`kubectl`
+  - :command:`tar`
+  - :command:`kubectl`
 
-  - 作業環境のサーバで充分なディスクの空き容量があること
+- | 作業環境のサーバで充分なディスクの空き容量があること
+
+
+暗号キーのバックアップ
+----------------------
+
+.. include:: ../../include/backup_encrypt_key_k8s.rst
+  
+
+| 取得したキーを exastro.yaml の 「ENCRYPT_KEY」に格納してください。
+
+- | Exastro IT Automation ENCRYPT_KEY
+  
+.. code-block:: bash
+
+  itaGlobalDefinition:
+    name: ita-global
+    enabled: true
+    image:
+      registry: "docker.io"
+      organization: exastro
+      package: exastro-it-automation
+    config:
+      DEFAULT_LANGUAGE: "ja"
+      LANGUAGE: "en"
+      CONTAINER_BASE: "kubernetes"
+      TZ: "Asia/Tokyo"
+      STORAGEPATH: "/storage/"
+    secret:
+      ENCRYPT_KEY: ""　# 取得した Exastro IT Automation ENCRYPT_KEY を入力
+
+- | Exastro Platform ENCRYPT_KEY
+  
+.. code-block:: bash
+  
+  pfGlobalDefinition:
+    name: pf-global
+    enabled: true
+    image:
+      registry: "docker.io"
+      organization: exastro
+      package: exastro-platform
+    config:
+      DEFAULT_LANGUAGE: "ja"
+      LANGUAGE: "en"
+      TZ: "Asia/Tokyo"
+      PYTHONIOENCODING: utf-8
+      PLATFORM_API_PROTOCOL: "http"
+      PLATFORM_API_HOST: "platform-api"
+      PLATFORM_API_PORT: "8000"
+      PLATFORM_WEB_PROTOCOL: "http"
+      PLATFORM_WEB_HOST: "platform-web"
+      PLATFORM_WEB_PORT: "8000"
+    secret:
+      ENCRYPT_KEY: ""  # 取得した Exastro Platform ENCRYPT_KEY を入力
 
 
 概要
@@ -29,7 +84,7 @@
 
 | バックアップ・リストア対象となるデータは下記の3つです。
 
-- バックアップ・リストア対象
+- | バックアップ・リストア対象
 
   - Exastro Platform のデータベース
   - Exastro IT Automation のデータベース
@@ -38,7 +93,7 @@
 | これらのデータを :command:`kubectl` コマンドを利用してバックアップ・リストアします。
 
 | 作業の流れは、まず、ユーザからのデータの書き込みを制限するために、リバースプロキシを停止します。
-| 次に、バックヤード処理を停止したら、データのバックアップを実施します。
+| 次にバックヤード処理を停止し、データのバックアップを実施します。
 | 最後に、作業前の数に Pod 数を戻します。
 
 | リストアの際の作業も同様の流れになります。
@@ -207,7 +262,7 @@
    .. code-block:: bash
       :caption: コマンド
 
-      kubectl exec -i exastro-maintenance -n exastro -- sh -c 'tar zcvf - ${STORAGEPATH}' > exastro_storage_backup_ita_`date +"%Y%m%d-%H%M%S"`.tar.gz
+      kubectl exec -i exastro-maintenance -n exastro -- sh -c 'tar zcvf - ${ITA_STORAGEPATH}' > exastro_storage_backup_ita_`date +"%Y%m%d-%H%M%S"`.tar.gz
 
 #. メンテナンス用コンテナの削除
 
@@ -354,7 +409,7 @@
              :caption: Exastro 用データベースリストアコマンド
 
              # ユーザ
-             gzip -dc exastro_mysqldump_platform_user_YYYYMMDD-HHmmss.sql.gz | kubectl exec -i exastro-maintenance -n exastro -- sh -c 'mysql -h ${PF_DB_HOST} -P ${PF_DB_PORT} -u ${PF_DB_ADMIN_USER} -p${PF_DB_ADMIN_PASSWORD}'
+             gzip -dc exastro_mysqldump_platform_user_YYYYMMDD-HHmmss.sql.gz | kubectl exec -i exastro-maintenance -n exastro -- sh -c 'mysql -h ${PF_DB_HOST} -P ${PF_DB_PORT} -u ${PF_DB_ADMIN_USER} -p${PF_DB_ADMIN_PASSWORD} mysql'
 
              # アプリケーション
              gzip -dc exastro_mysqldump_platform_db_YYYYMMDD-HHmmss.sql.gz | kubectl exec -i exastro-maintenance -n exastro -- sh -c 'mysql -h ${PF_DB_HOST} -P ${PF_DB_PORT} -u ${PF_DB_ADMIN_USER} -p${PF_DB_ADMIN_PASSWORD}'
@@ -365,7 +420,7 @@
              :caption: Exastro Platform 用データベースリストアコマンド
 
              # ユーザ
-             gzip -dc exastro_mysqldump_platform_user_YYYYMMDD-HHmmss.sql.gz | kubectl exec -i exastro-maintenance -n exastro -- sh -c 'mysql -h ${PF_DB_HOST} -P ${PF_DB_PORT} -u ${PF_DB_ADMIN_USER} -p${PF_DB_ADMIN_PASSWORD}'
+             gzip -dc exastro_mysqldump_platform_user_YYYYMMDD-HHmmss.sql.gz | kubectl exec -i exastro-maintenance -n exastro -- sh -c 'mysql -h ${PF_DB_HOST} -P ${PF_DB_PORT} -u ${PF_DB_ADMIN_USER} -p${PF_DB_ADMIN_PASSWORD} mysql'
 
              # アプリケーション
              gzip -dc exastro_mysqldump_platform_db_YYYYMMDD-HHmmss.sql.gz | kubectl exec -i exastro-maintenance -n exastro -- sh -c 'mysql -h ${PF_DB_HOST} -P ${PF_DB_PORT} -u ${PF_DB_ADMIN_USER} -p${PF_DB_ADMIN_PASSWORD}'
@@ -374,7 +429,7 @@
              :caption: Exastro IT Automation 用データベースリストアコマンド
 
              # ユーザ
-             gzip -dc exastro_mysqldump_ita_user_YYYYMMDD-HHmmss.sql.gz | kubectl exec -i exastro-maintenance -n exastro -- sh -c 'mysql -h ${ITA_DB_HOST} -P ${ITA_DB_PORT} -u ${ITA_DB_ADMIN_USER} -p${ITA_DB_ADMIN_PASSWORD}'
+             gzip -dc exastro_mysqldump_ita_user_YYYYMMDD-HHmmss.sql.gz | kubectl exec -i exastro-maintenance -n exastro -- sh -c 'mysql -h ${ITA_DB_HOST} -P ${ITA_DB_PORT} -u ${ITA_DB_ADMIN_USER} -p${ITA_DB_ADMIN_PASSWORD} mysql'
 
              # アプリケーション
              gzip -dc exastro_mysqldump_ita_db_YYYYMMDD-HHmmss.sql.gz | kubectl exec -i exastro-maintenance -n exastro -- sh -c 'mysql -h ${ITA_DB_HOST} -P ${ITA_DB_PORT} -u ${ITA_DB_ADMIN_USER} -p${ITA_DB_ADMIN_PASSWORD}'
@@ -386,7 +441,7 @@
    .. code-block:: bash
       :caption: コマンド
 
-      kubectl exec -i exastro-maintenance -n exastro -- sh -c 'tar zxvf - -C  ${STORAGEPATH}' < exastro_storage_backup_ita_YYYYMMDD-HHmmss.tar.gz
+      kubectl exec -i exastro-maintenance -n exastro -- sh -c 'tar zxvf - -C ${ITA_STORAGEPATH}' < exastro_storage_backup_ita_YYYYMMDD-HHmmss.tar.gz
 
 #. メンテナンス用コンテナの削除
 
